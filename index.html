@@ -360,6 +360,12 @@ function subirArchivo(campo) {
   inp.onchange = e => {
     const f = e.target.files[0]; if (!f) return;
     const r = new FileReader();
+    // Validar tamaño máximo 10MB
+    if (f.size > 10 * 1024 * 1024) {
+      alert('El archivo es demasiado grande (máximo 10MB).
+Si es un estado de cuenta, intenta tomar una foto a las páginas principales.');
+      return;
+    }
     r.onload = async ev => {
       const src = ev.target.result;
       if (src.startsWith('data:image')) {

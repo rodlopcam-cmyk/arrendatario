@@ -306,11 +306,32 @@ function abrirCamara(campo) {
       document.getElementById('camView').innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:#666"><div style="font-size:40px">📷</div><div style="font-size:14px;color:#aaa">Cámara no disponible</div></div>';
     });
 }
+function comprimirImagen(srcBase64, maxW, maxH, calidad) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+      if (h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL('image/jpeg', calidad));
+    };
+    img.src = srcBase64;
+  });
+}
+
 function capturar() {
   const v = document.getElementById('camVideo'), c = document.getElementById('camCanvas');
   c.width = v.videoWidth||1280; c.height = v.videoHeight||720;
   c.getContext('2d').drawImage(v,0,0);
-  camFotoData = c.toDataURL('image/jpeg',0.88);
+  // Comprimir a máx 1200px y calidad 0.7 para reducir memoria
+  const raw = c.toDataURL('image/jpeg', 0.88);
+  comprimirImagen(raw, 1200, 900, 0.72).then(compressed => {
+    camFotoData = compressed;
+  });
+  camFotoData = raw; // temporal mientras comprime
   document.getElementById('camPreviewImg').src = camFotoData;
   document.getElementById('camView').style.display = 'none';
   document.getElementById('camPreview').classList.add('show');
@@ -339,7 +360,15 @@ function subirArchivo(campo) {
   inp.onchange = e => {
     const f = e.target.files[0]; if (!f) return;
     const r = new FileReader();
-    r.onload = ev => { state.docs[campo] = ev.target.result; renderPaso(); };
+    r.onload = async ev => {
+      const src = ev.target.result;
+      if (src.startsWith('data:image')) {
+        state.docs[campo] = await comprimirImagen(src, 1200, 900, 0.72);
+      } else {
+        state.docs[campo] = src;
+      }
+      renderPaso();
+    };
     r.readAsDataURL(f);
   };
   inp.click();
